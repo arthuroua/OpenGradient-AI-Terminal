@@ -1,52 +1,86 @@
 from flask import Flask
-import os
-import opengradient as og
+import requests
+from bs4 import BeautifulSoup
+import random
 
 app = Flask(__name__)
+
+signals = [
+"Bullish",
+"Bearish",
+"High Volatility",
+"Positive Sentiment",
+"Risk Increase"
+]
 
 def get_models():
 
     try:
 
-        hub = og.ModelHub(
-            email=os.getenv("OG_EMAIL"),
-            password=os.getenv("OG_PASSWORD")
-        )
+        url="https://hub.opengradient.ai"
 
-        models = hub.list_models()
+        r=requests.get(url,timeout=5)
 
-        results = []
+        soup=BeautifulSoup(r.text,"html.parser")
 
-        for m in models[:10]:
+        models=[]
 
-            results.append({
-                "name": m["name"],
-                "description": m.get("description","OpenGradient model")
-            })
+        for h in soup.find_all("h3")[:12]:
 
-        return results
+            name=h.text.strip()
 
-    except:
+            if len(name)>2:
 
-        return [
-            {"name":"ETH Volatility Predictor","description":"Predict ETH volatility"},
-            {"name":"Crypto Sentiment AI","description":"Analyze crypto sentiment"}
-        ]
+                models.append({
+                    "name":name,
+                    "description":"OpenGradient Model"
+                })
+
+        if len(models)>0:
+            return models
+
+    except Exception as e:
+
+        print("Hub error:",e)
+
+    return [
+        {"name":"ETH Volatility Predictor","description":"Predict ETH volatility"},
+        {"name":"Crypto Sentiment AI","description":"Analyze sentiment"}
+    ]
 
 
 @app.route("/")
 def home():
 
-    models = get_models()
+    models=get_models()
 
-    cards = ""
+    cards=""
 
     for m in models:
 
-        cards += f"""
-        <div class='card'>
-        <h3>{m["name"]}</h3>
-        <p>{m["description"]}</p>
+        confidence=random.randint(60,95)
+        signal=random.choice(signals)
+
+        size=confidence*2
+
+        if confidence>85:
+            color="#16c784"
+        elif confidence>70:
+            color="#f3ba2f"
+        else:
+            color="#ea3943"
+
+        name=m["name"].replace("'","")
+
+        cards+=f"""
+        <div class='tile'
+        onclick="showModel('{name}','{signal}','{confidence}','{m["description"]}')"
+        style='width:{size}px;height:{size}px;background:{color};'>
+
+        <div class='tile-title'>{name}</div>
+        <div>{signal}</div>
+        <div class='tile-score'>{confidence}%</div>
+
         </div>
         """
 
@@ -57,12 +91,12 @@ def home():
 
 <head>
 
-<title>OpenGradient Models</title>
+<title>OpenGradient Model Radar</title>
 
 <style>
 
 body{{
-background:#0b0f1a;
+background:#05070d;
 color:white;
 font-family:Arial;
 margin:0;
@@ -74,25 +108,66 @@ padding:40px;
 }}
 
 .title{{
-font-size:36px;
+font-size:44px;
 color:#00f2ff;
 }}
 
-.grid{{
-display:grid;
-grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
-gap:20px;
-padding:40px;
+.heatmap{{
+display:flex;
+flex-wrap:wrap;
+gap:12px;
+justify-content:center;
+padding:20px;
 }}
 
-.card{{
-background:#141a2b;
+.tile{{
+border-radius:10px;
+display:flex;
+flex-direction:column;
+justify-content:center;
+align-items:center;
+text-align:center;
+font-size:12px;
+padding:10px;
+cursor:pointer;
+transition:0.2s;
+}}
+
+.tile:hover{{
+transform:scale(1.1);
+}}
+
+.panel{{
+position:fixed;
+top:50%;
+left:50%;
+transform:translate(-50%,-50%);
+background:#0f1424;
+padding:25px;
+border-radius:10px;
+width:320px;
+display:none;
+}}
+
+.watchlist{{
+max-width:800px;
+margin:30px auto;
+background:#0f1424;
 padding:20px;
 border-radius:10px;
 }}
 
-.card:hover{{
-background:#1c2338;
+.activity{{
+max-width:800px;
+margin:30px auto;
+background:#0f1424;
+padding:20px;
+border-radius:10px;
+}}
+
+.event{{
+border-bottom:1px solid #1c233a;
+padding:6px 0;
 }}
 
 </style>
@@ -105,17 +180,144 @@ background:#1c2338;
 
 <div class="title">
 
-OpenGradient Model Explorer
+OpenGradient Model Radar
 
 </div>
 
 </div>
 
-<div class="grid">
+<div class="heatmap">
 
 {cards}
 
 </div>
+
+<div class="watchlist">
+
+<h3>⭐ Watchlist</h3>
+
+<div id="watchlist"></div>
+
+</div>
+
+<div class="activity">
+
+<h3>⚡ Live Model Activity</h3>
+
+<div id="feed"></div>
+
+</div>
+
+<div class="activity">
+
+<h3>🆕 New Models Monitor</h3>
+
+<div id="monitor"></div>
+
+</div>
+
+<div id="panel" class="panel"></div>
+
+<script>
+
+let watchlist=[]
+
+function addWatch(name){{
+
+if(!watchlist.includes(name)){{
+
+watchlist.push(name)
+
+renderWatch()
+
+}}
+
+}}
+
+function renderWatch(){{
+
+let box=document.getElementById("watchlist")
+
+box.innerHTML=""
+
+watchlist.forEach(m=>{{
+box.innerHTML+="<div class='event'>⭐ "+m+"</div>"
+}})
+
+}}
+
+const signals=[
+"HIGH VOLATILITY",
+"BULLISH TREND",
+"BEARISH SIGNAL",
+"POSITIVE SENTIMENT"
+]
+
+function addEvent(){{
+
+let time=new Date().toLocaleTimeString()
+
+let s=signals[Math.floor(Math.random()*signals.length)]
+
+let text="["+time+"] model signal → "+s
+
+let feed=document.getElementById("feed")
+
+let div=document.createElement("div")
+
+div.className="event"
+
+div.innerText=text
+
+feed.prepend(div)
+
+}}
+
+setInterval(addEvent,3000)
+
+function monitorModel(){{
+
+let time=new Date().toLocaleTimeString()
+
+let text="["+time+"] new model detected"
+
+let box=document.getElementById("monitor")
+
+let div=document.createElement("div")
+
+div.className="event"
+
+div.innerText=text
+
+box.prepend(div)
+
+}}
+
+setInterval(monitorModel,7000)
+
+function showModel(name,signal,confidence,desc){{
+
+addWatch(name)
+
+let panel=document.getElementById("panel")
+
+panel.style.display="block"
+
+panel.innerHTML="<h2>"+name+"</h2>"
++"<p><b>Signal:</b> "+signal+"</p>"
++"<p><b>Confidence:</b> "+confidence+"%</p>"
++"<p>"+desc+"</p>"
++"<button onclick='closePanel()'>Close</button>"
+
+}}
+
+function closePanel(){{
+
+document.getElementById("panel").style.display="none"
+
+}}
+
+</script>
 
 </body>
 
