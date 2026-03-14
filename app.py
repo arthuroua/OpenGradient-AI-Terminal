@@ -1,60 +1,35 @@
 from flask import Flask
 import requests
-from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 
-URL = "https://hub.opengradient.ai/models"
-
+API_URL = "https://hub.opengradient.ai/models?page=0&limit=20&search=&sort_by=most_likes"
 
 def get_models():
 
-    models = []
-
     try:
 
-        headers = {
-        "User-Agent": "Mozilla/5.0"
-        }
+        r = requests.get(API_URL, timeout=10)
 
-        r = requests.get(URL, headers=headers, timeout=10)
+        data = r.json()
 
-        soup = BeautifulSoup(r.text, "html.parser")
+        models = []
 
-        for tag in soup.find_all("h3"):
+        for m in data.get("models", []):
 
-            name = tag.text.strip()
-
-            if len(name) > 3 and len(name) < 80:
-
-                models.append({
-                    "name": name,
-                    "description": "OpenGradient model"
-                })
-
-        models = list(dict.fromkeys([m["name"] for m in models]))
-
-        result = []
-
-        for m in models[:20]:
-
-            result.append({
-                "name": m,
-                "description": "Model from OpenGradient Hub"
+            models.append({
+                "name": m.get("name","Unknown Model"),
+                "description": m.get("description","No description"),
+                "likes": m.get("likes",0)
             })
 
-        if len(result) > 0:
-            return result
+        return models
 
     except Exception as e:
 
-        print("scraper error:", e)
+        print("API error:", e)
 
-    return [
-        {"name":"ETH Volatility Predictor","description":"Predict ETH volatility"},
-        {"name":"Crypto Sentiment AI","description":"Analyze crypto sentiment"}
-    ]
-
+        return []
 
 @app.route("/")
 def home():
@@ -66,15 +41,21 @@ def home():
     for m in models:
 
         cards += f"""
+
         <div class='card'>
-        <h3>{m["name"]}</h3>
-        <p>{m["description"]}</p>
+
+        <h3>{m['name']}</h3>
+
+        <p>{m['description']}</p>
+
+        <div class='likes'>❤️ {m['likes']} likes</div>
+
         </div>
+
         """
 
-    total_models = len(models)
-
     return f"""
+
 <!DOCTYPE html>
 
 <html>
@@ -102,18 +83,6 @@ font-size:36px;
 color:#00f2ff;
 }}
 
-.stats{{
-display:flex;
-justify-content:center;
-padding:20px;
-}}
-
-.stat{{
-background:#141a2b;
-padding:20px;
-border-radius:10px;
-}}
-
 .grid{{
 display:grid;
 grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
@@ -129,6 +98,11 @@ border-radius:10px;
 
 .card:hover{{
 background:#1c2338;
+}}
+
+.likes{{
+margin-top:10px;
+color:#00f2ff;
 }}
 
 </style>
@@ -147,17 +121,6 @@ OpenGradient Ecosystem Radar
 
 </div>
 
-<div class="stats">
-
-<div class="stat">
-
-Detected Models<br>
-<b>{total_models}</b>
-
-</div>
-
-</div>
-
 <div class="grid">
 
 {cards}
@@ -167,6 +130,7 @@ Detected Models<br>
 </body>
 
 </html>
+
 """
 
 if __name__ == "__main__":
