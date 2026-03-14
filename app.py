@@ -4,7 +4,7 @@ import random
 
 app = Flask(__name__)
 
-API_URL = "https://hub.opengradient.ai/models?page=0&limit=24&search=&sort_by=most_likes"
+API_URL = "https://hub.opengradient.ai/api/models?page=0&limit=24&sort_by=most_likes"
 
 signals = [
 "BULLISH",
