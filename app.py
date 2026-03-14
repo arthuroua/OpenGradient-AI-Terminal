@@ -17,7 +17,11 @@ def get_models():
 
     try:
 
-        r = requests.get(API_URL, timeout=10)
+        headers = {
+        "User-Agent": "Mozilla/5.0"
+        }
+
+        r = requests.get(API_URL, headers=headers, timeout=10)
 
         data = r.json()
 
@@ -35,13 +39,13 @@ def get_models():
             return models
 
     except Exception as e:
+
         print("API error:", e)
 
     return [
-        {"name":"ETH Volatility Predictor","description":"Predict ETH volatility","likes":0},
-        {"name":"Crypto Sentiment AI","description":"Analyze crypto sentiment","likes":0}
+        {"name":"ETH Volatility Predictor","description":"Predict ETH volatility"},
+        {"name":"Crypto Sentiment AI","description":"Analyze crypto sentiment"}
     ]
-
 
 @app.route("/")
 def home():
