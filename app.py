@@ -1,18 +1,15 @@
 from flask import Flask
 import random
 import requests
-from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 
-FALLBACK_MODELS = [
-("ETH Volatility Predictor","Predict ETH volatility using GARCH"),
+fallback_models = [
+("ETH Volatility Predictor","Predict ETH volatility"),
 ("Crypto Sentiment AI","Analyze market sentiment"),
 ("Market Regime Detector","Detect bull/bear regimes"),
-("BTC Price Predictor","Forecast BTC price trends"),
-("DeFi Risk Analyzer","Analyze DeFi protocol risk"),
-("AI Trading Agent","Autonomous crypto trading AI"),
-("Portfolio Optimizer","Optimize crypto portfolios")
+("BTC Price Predictor","Forecast BTC trends"),
+("DeFi Risk Analyzer","Analyze DeFi risk")
 ]
 
 signals = [
@@ -23,32 +20,40 @@ signals = [
 "Risk Increase"
 ]
 
+
 def get_models():
 
     try:
-        url="https://hub.opengradient.ai"
-        r=requests.get(url,timeout=5)
+        r = requests.get("https://hub.opengradient.ai",timeout=5)
 
-        soup=BeautifulSoup(r.text,"html.parser")
+        if r.status_code == 200:
 
-        models=[]
+            text = r.text
 
-        cards=soup.find_all("h3")
+            models=[]
 
-        for c in cards[:10]:
+            lines=text.split(">")
 
-            name=c.text.strip()
+            for l in lines:
 
-            if len(name)>3:
-                models.append((name,"OpenGradient Model"))
+                if "Model" in l or "Predictor" in l:
 
-        if len(models)>3:
-            return models
+                    name=l.strip()
+
+                    if len(name)<40:
+
+                        models.append((name,"OpenGradient model"))
+
+                if len(models)>6:
+                    break
+
+            if len(models)>2:
+                return models
 
     except:
         pass
 
-    return FALLBACK_MODELS
+    return fallback_models
 
 
 @app.route("/")
@@ -72,26 +77,18 @@ def home():
         else:
             color="#ea3943"
 
-        safe_name=name.replace("'","")
+        safe=name.replace("'","")
 
         cards+=f"""
-
-        <div class="tile"
-        onclick="showModel('{safe_name}','{signal}','{confidence}','{desc}')"
-        style="width:{size}px;height:{size}px;background:{color};">
-
+        <div class="tile" onclick="showModel('{safe}','{signal}','{confidence}','{desc}')" style="width:{size}px;height:{size}px;background:{color};">
         <div class="tile-title">{name}</div>
         <div>{signal}</div>
         <div class="tile-score">{confidence}%</div>
-
         </div>
-
         """
 
     return f"""
-
 <!DOCTYPE html>
-
 <html>
 
 <head>
@@ -113,7 +110,7 @@ padding:40px;
 }}
 
 .title {{
-font-size:44px;
+font-size:42px;
 font-weight:bold;
 background:linear-gradient(90deg,#00f2ff,#8a5cff);
 -webkit-background-clip:text;
@@ -162,34 +159,25 @@ top:50%;
 left:50%;
 transform:translate(-50%,-50%);
 background:#0f1424;
-padding:30px;
-border-radius:12px;
+padding:25px;
+border-radius:10px;
 width:320px;
 display:none;
-border:1px solid #1c233a;
 }}
 
 .timeline {{
-margin-top:15px;
-background:#05070d;
-padding:10px;
-border-radius:8px;
+margin-top:10px;
 font-size:13px;
 }}
 
-.timeline-item {{
-border-bottom:1px solid #1c233a;
-padding:6px 0;
-}}
-
 .close {{
-cursor:pointer;
 margin-top:10px;
+cursor:pointer;
 color:#00f2ff;
 }}
 
 .activity {{
-max-width:800px;
+max-width:700px;
 margin:40px auto;
 background:#0f1424;
 padding:20px;
@@ -198,20 +186,7 @@ border-radius:10px;
 
 .event {{
 border-bottom:1px solid #1c233a;
-padding:6px 0;
-}}
-
-.watchlist {{
-max-width:800px;
-margin:30px auto;
-background:#0f1424;
-padding:20px;
-border-radius:10px;
-}}
-
-.watch-item {{
-border-bottom:1px solid #1c233a;
-padding:6px 0;
+padding:5px 0;
 }}
 
 </style>
@@ -233,78 +208,51 @@ padding:6px 0;
 </div>
 
 
-<div class="watchlist">
+<div class="activity">
 
-<h2>⭐ Model Watchlist</h2>
+<h3>⚡ Live Model Activity</h3>
 
-<div id="watchlist"></div>
+<div id="feed"></div>
 
 </div>
 
 
 <div class="activity">
 
-<h2>⚡ Live Model Activity</h2>
+<h3>🚀 Model Hub Monitor</h3>
 
-<div id="feed"></div>
+<div id="newmodels"></div>
 
 </div>
 
-<div id="panel" class="panel"></div>
 
+<div id="panel" class="panel"></div>
 
 <script>
 
-let watchlist=[]
-
-function addWatch(name){{
-
-if(!watchlist.includes(name)){{
-
-watchlist.push(name)
-
-renderWatch()
-
-}}
-
-}}
-
-function renderWatch(){{
-
-let box=document.getElementById("watchlist")
-
-box.innerHTML=""
-
-watchlist.forEach(m=>{{
-
-box.innerHTML+=`<div class="watch-item">⭐ ${m}</div>`
-
-}})
-
-}}
-
-const models=[
-"ETH Volatility Predictor",
-"Crypto Sentiment AI",
-"Market Regime Detector",
-"BTC Price Predictor"
-]
-
-const signals=[
+let signals=[
 "HIGH VOLATILITY",
 "BULLISH TREND",
 "BEARISH SIGNAL",
 "POSITIVE SENTIMENT"
 ]
 
-function addEvent(){{
+let models=[
+"ETH Volatility Predictor",
+"Crypto Sentiment AI",
+"Market Regime Detector",
+"BTC Price Predictor"
+]
 
-let model=models[Math.floor(Math.random()*models.length)]
-let signal=signals[Math.floor(Math.random()*signals.length)]
+
+function addEvent(){
+
+let m=models[Math.floor(Math.random()*models.length)]
+let s=signals[Math.floor(Math.random()*signals.length)]
 
 let time=new Date().toLocaleTimeString()
 
-let event="["+time+"] "+model+" generated "+signal
+let text="["+time+"] "+m+" generated "+s
 
 let feed=document.getElementById("feed")
 
@@ -312,82 +260,77 @@ let div=document.createElement("div")
 
 div.className="event"
 
-div.innerText=event
+div.innerText=text
 
 feed.prepend(div)
 
-if(feed.children.length>10){{
+if(feed.children.length>8){
 
 feed.removeChild(feed.lastChild)
 
-}}
+}
 
-}}
+}
 
 setInterval(addEvent,3000)
 
 
-function generateTimeline(){{
+function addModel(){
 
-let html=""
+let m=models[Math.floor(Math.random()*models.length)]
 
-for(let i=0;i<5;i++){{
+let time=new Date().toLocaleTimeString()
 
-let time=new Date(Date.now()-i*60000).toLocaleTimeString()
+let text="["+time+"] new model detected → "+m
 
-let s=signals[Math.floor(Math.random()*signals.length)]
+let box=document.getElementById("newmodels")
 
-html+=`<div class="timeline-item">${{time}} — ${{s}}</div>`
+let div=document.createElement("div")
 
-}}
+div.className="event"
 
-return html
+div.innerText=text
 
-}}
+box.prepend(div)
+
+if(box.children.length>6){
+
+box.removeChild(box.lastChild)
+
+}
+
+}
+
+setInterval(addModel,7000)
 
 
-function showModel(name,signal,confidence,desc){{
 
-addWatch(name)
+function showModel(name,signal,confidence,desc){
 
 let panel=document.getElementById("panel")
 
 panel.style.display="block"
 
-panel.innerHTML=`
+panel.innerHTML="<h2>"+name+"</h2>"
++"<p><b>Signal:</b> "+signal+"</p>"
++"<p><b>Confidence:</b> "+confidence+"%</p>"
++"<p>"+desc+"</p>"
++"<div class='timeline'>Signal timeline generated</div>"
++"<div class='close' onclick='closePanel()'>Close</div>"
 
-<h2>${{name}}</h2>
+}
 
-<p><b>Signal:</b> ${{signal}}</p>
-
-<p><b>Confidence:</b> ${{confidence}}%</p>
-
-<p>${{desc}}</p>
-
-<h3>Signal Timeline</h3>
-
-<div class="timeline">
-${{generateTimeline()}}
-</div>
-
-<div class="close" onclick="closePanel()">Close</div>
-
-`
-
-}}
-
-function closePanel(){{
+function closePanel(){
 
 document.getElementById("panel").style.display="none"
 
-}}
+}
 
 </script>
 
 </body>
 
 </html>
-
 """
 
 
