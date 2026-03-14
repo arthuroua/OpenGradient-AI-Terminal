@@ -1,44 +1,60 @@
 from flask import Flask
 import requests
+from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 
-API_URL = "https://hub.opengradient.ai/models?page=0&limit=20&sort_by=most_likes"
+URL = "https://hub.opengradient.ai/models"
 
 def get_models():
 
     headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "application/json"
+        "User-Agent": "Mozilla/5.0"
     }
 
     try:
 
-        r = requests.get(API_URL, headers=headers, timeout=10)
+        r = requests.get(URL, headers=headers, timeout=10)
 
-        if r.status_code != 200:
-            print("API error:", r.status_code)
-            return []
-
-        data = r.json()
+        soup = BeautifulSoup(r.text, "html.parser")
 
         models = []
 
-        for m in data.get("models", []):
+        cards = soup.find_all("a")
 
-            models.append({
-                "name": m.get("name","Unknown Model"),
-                "description": m.get("description","OpenGradient model"),
-                "likes": m.get("likes",0)
+        for c in cards:
+
+            name = c.text.strip()
+
+            if "-" in name and len(name) < 80 and len(name) > 5:
+
+                models.append({
+                    "name": name,
+                    "description": "OpenGradient model"
+                })
+
+        models = list(dict.fromkeys([m["name"] for m in models]))
+
+        result = []
+
+        for m in models[:20]:
+
+            result.append({
+                "name": m,
+                "description": "Model from OpenGradient Hub"
             })
 
-        return models
+        if len(result) > 0:
+            return result
 
     except Exception as e:
+        print("scraper error:", e)
 
-        print("Fetch error:", e)
+    return [
+        {"name":"ETH Volatility Predictor","description":"Predict ETH volatility"},
+        {"name":"Crypto Sentiment AI","description":"Analyze crypto sentiment"}
+    ]
 
-        return []
 
 @app.route("/")
 def home():
@@ -51,20 +67,20 @@ def home():
 
         cards += f"""
         <div class='card'>
-        <h3>{m['name']}</h3>
-        <p>{m['description']}</p>
-        <div class='likes'>❤️ {m['likes']}</div>
+        <h3>{m["name"]}</h3>
+        <p>{m["description"]}</p>
         </div>
         """
 
     return f"""
 
 <!DOCTYPE html>
+
 <html>
 
 <head>
 
-<title>OpenGradient Ecosystem Radar</title>
+<title>OpenGradient Radar</title>
 
 <style>
 
@@ -87,7 +103,7 @@ color:#00f2ff;
 
 .grid{{
 display:grid;
-grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
 gap:20px;
 padding:40px;
 }}
@@ -102,11 +118,6 @@ border-radius:10px;
 background:#1c2338;
 }}
 
-.likes{{
-margin-top:10px;
-color:#00f2ff;
-}}
-
 </style>
 
 </head>
@@ -114,13 +125,19 @@ color:#00f2ff;
 <body>
 
 <div class="header">
+
 <div class="title">
+
 OpenGradient Ecosystem Radar
+
 </div>
+
 </div>
 
 <div class="grid">
+
 {cards}
+
 </div>
 
 </body>
