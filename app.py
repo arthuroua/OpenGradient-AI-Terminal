@@ -1,11 +1,15 @@
 from flask import Flask
 import requests
+from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 
-API_URL = "https://hub.opengradient.ai/models?page=0&limit=24&search=&sort_by=most_likes"
+URL = "https://hub.opengradient.ai/models"
+
 
 def get_models():
+
+    models = []
 
     try:
 
@@ -13,29 +17,42 @@ def get_models():
         "User-Agent": "Mozilla/5.0"
         }
 
-        r = requests.get(API_URL, headers=headers, timeout=10)
+        r = requests.get(URL, headers=headers, timeout=10)
 
-        data = r.json()
+        soup = BeautifulSoup(r.text, "html.parser")
 
-        models = []
+        for tag in soup.find_all("h3"):
 
-        for m in data.get("models", []):
+            name = tag.text.strip()
 
-            models.append({
-                "name": m.get("name","Unknown Model"),
-                "description": m.get("description","OpenGradient model"),
-                "likes": m.get("likes",0)
+            if len(name) > 3 and len(name) < 80:
+
+                models.append({
+                    "name": name,
+                    "description": "OpenGradient model"
+                })
+
+        models = list(dict.fromkeys([m["name"] for m in models]))
+
+        result = []
+
+        for m in models[:20]:
+
+            result.append({
+                "name": m,
+                "description": "Model from OpenGradient Hub"
             })
 
-        if len(models) > 0:
-            return models
+        if len(result) > 0:
+            return result
 
     except Exception as e:
-        print("API error:", e)
+
+        print("scraper error:", e)
 
     return [
-        {"name":"ETH Volatility Predictor","description":"Predict ETH volatility","likes":0},
-        {"name":"Crypto Sentiment AI","description":"Analyze crypto sentiment","likes":0}
+        {"name":"ETH Volatility Predictor","description":"Predict ETH volatility"},
+        {"name":"Crypto Sentiment AI","description":"Analyze crypto sentiment"}
     ]
 
 
@@ -52,12 +69,10 @@ def home():
         <div class='card'>
         <h3>{m["name"]}</h3>
         <p>{m["description"]}</p>
-        <p class='likes'>❤️ {m["likes"]}</p>
         </div>
         """
 
     total_models = len(models)
-    total_likes = sum(m["likes"] for m in models)
 
     return f"""
 <!DOCTYPE html>
@@ -90,7 +105,6 @@ color:#00f2ff;
 .stats{{
 display:flex;
 justify-content:center;
-gap:40px;
 padding:20px;
 }}
 
@@ -117,11 +131,6 @@ border-radius:10px;
 background:#1c2338;
 }}
 
-.likes{{
-color:#00f2ff;
-font-weight:bold;
-}}
-
 </style>
 
 </head>
@@ -141,13 +150,10 @@ OpenGradient Ecosystem Radar
 <div class="stats">
 
 <div class="stat">
-Total Models<br>
-<b>{total_models}</b>
-</div>
 
-<div class="stat">
-Total Likes<br>
-<b>{total_likes}</b>
+Detected Models<br>
+<b>{total_models}</b>
+
 </div>
 
 </div>
