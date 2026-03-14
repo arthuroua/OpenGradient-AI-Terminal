@@ -42,8 +42,8 @@ background:#1c2338;
 }
 
 .likes{
-color:#00f2ff;
 margin-top:10px;
+color:#00f2ff;
 }
 
 </style>
@@ -66,15 +66,23 @@ async function loadModels(){
 
 try{
 
-const res = await fetch(
-"https://hub.opengradient.ai/models?page=0&limit=20&sort_by=most_likes"
-)
+const res = await fetch("https://hub.opengradient.ai/models")
 
-const data = await res.json()
+const html = await res.text()
+
+const parser = new DOMParser()
+
+const doc = parser.parseFromString(html,"text/html")
+
+const nextData = doc.querySelector("#__NEXT_DATA__")
+
+const json = JSON.parse(nextData.textContent)
+
+const models = json.props.pageProps.initialModels || []
 
 const grid = document.getElementById("grid")
 
-data.models.forEach(m=>{
+models.slice(0,20).forEach(m=>{
 
 const card=document.createElement("div")
 
