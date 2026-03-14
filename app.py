@@ -1,16 +1,16 @@
 from flask import Flask
 import random
+import requests
+from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 
-models = [
+fallback_models = [
 ("ETH Volatility Predictor","Predict ETH volatility"),
 ("Crypto Sentiment AI","Analyze market sentiment"),
 ("Market Regime Detector","Detect bull/bear regimes"),
 ("BTC Price Predictor","Forecast BTC trends"),
-("DeFi Risk Analyzer","Analyze DeFi risk"),
-("AI Trading Agent","Autonomous crypto trading AI"),
-("Portfolio Optimizer","Optimize crypto portfolios")
+("DeFi Risk Analyzer","Analyze DeFi risk")
 ]
 
 signals = [
@@ -21,8 +21,38 @@ signals = [
 "Risk Increase"
 ]
 
+def get_models():
+
+    try:
+
+        url="https://hub.opengradient.ai"
+
+        r=requests.get(url,timeout=5)
+
+        soup=BeautifulSoup(r.text,"html.parser")
+
+        models=[]
+
+        for h in soup.find_all("h3")[:10]:
+
+            name=h.text.strip()
+
+            if len(name)>2:
+                models.append((name,"OpenGradient model"))
+
+        if len(models)>2:
+            return models
+
+    except:
+        pass
+
+    return fallback_models
+
+
 @app.route("/")
 def home():
+
+    models=get_models()
 
     cards=""
 
@@ -54,9 +84,11 @@ def home():
         </div>
         """.format(safe,signal,confidence,desc,size,color)
 
+
     html = """
 <!DOCTYPE html>
 <html>
+
 <head>
 
 <title>OpenGradient AI Terminal</title>
@@ -291,7 +323,6 @@ box.removeChild(box.lastChild)
 setInterval(monitorModel,7000)
 
 
-
 function generateTimeline(){
 
 let html=""
@@ -333,6 +364,7 @@ document.getElementById("panel").style.display="none"
 </script>
 
 </body>
+
 </html>
 """
 
@@ -340,4 +372,4 @@ document.getElementById("panel").style.display="none"
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    app.run(host="0.0.0.0",port=8080)
