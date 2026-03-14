@@ -1,1 +1,107 @@
+<!DOCTYPE html>
+<html>
 
+<head>
+
+<title>OpenGradient Ecosystem Radar</title>
+
+<style>
+
+body{
+background:#0b0f1a;
+color:white;
+font-family:Arial;
+margin:0;
+}
+
+.header{
+text-align:center;
+padding:40px;
+}
+
+.title{
+font-size:36px;
+color:#00f2ff;
+}
+
+.grid{
+display:grid;
+grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
+gap:20px;
+padding:40px;
+}
+
+.card{
+background:#141a2b;
+padding:20px;
+border-radius:10px;
+}
+
+.card:hover{
+background:#1c2338;
+}
+
+.likes{
+color:#00f2ff;
+margin-top:10px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="header">
+<div class="title">
+OpenGradient Ecosystem Radar
+</div>
+</div>
+
+<div id="grid" class="grid"></div>
+
+<script>
+
+async function loadModels(){
+
+try{
+
+const res = await fetch(
+"https://hub.opengradient.ai/models?page=0&limit=20&sort_by=most_likes"
+)
+
+const data = await res.json()
+
+const grid = document.getElementById("grid")
+
+data.models.forEach(m=>{
+
+const card=document.createElement("div")
+
+card.className="card"
+
+card.innerHTML=`
+<h3>${m.name}</h3>
+<p>${m.description || "OpenGradient model"}</p>
+<div class="likes">❤️ ${m.likes || 0}</div>
+`
+
+grid.appendChild(card)
+
+})
+
+}catch(e){
+
+console.log("error loading models",e)
+
+}
+
+}
+
+loadModels()
+
+</script>
+
+</body>
+
+</html>
