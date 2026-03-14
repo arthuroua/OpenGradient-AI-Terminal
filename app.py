@@ -1,19 +1,18 @@
 from flask import Flask
 import random
+import requests
+from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 
-models = [
+FALLBACK_MODELS = [
 ("ETH Volatility Predictor","Predict ETH volatility using GARCH"),
 ("Crypto Sentiment AI","Analyze market sentiment"),
 ("Market Regime Detector","Detect bull/bear regimes"),
 ("BTC Price Predictor","Forecast BTC price trends"),
 ("DeFi Risk Analyzer","Analyze DeFi protocol risk"),
 ("AI Trading Agent","Autonomous crypto trading AI"),
-("Portfolio Optimizer","Optimize crypto portfolios"),
-("Onchain Data Analyzer","Analyze blockchain activity"),
-("Liquidity Predictor","Predict market liquidity"),
-("Gas Fee Estimator","Estimate Ethereum gas fees")
+("Portfolio Optimizer","Optimize crypto portfolios")
 ]
 
 signals = [
@@ -24,8 +23,38 @@ signals = [
 "Risk Increase"
 ]
 
+def get_models():
+
+    try:
+        url="https://hub.opengradient.ai"
+        r=requests.get(url,timeout=5)
+
+        soup=BeautifulSoup(r.text,"html.parser")
+
+        models=[]
+
+        cards=soup.find_all("h3")
+
+        for c in cards[:10]:
+
+            name=c.text.strip()
+
+            if len(name)>3:
+                models.append((name,"OpenGradient Model"))
+
+        if len(models)>3:
+            return models
+
+    except:
+        pass
+
+    return FALLBACK_MODELS
+
+
 @app.route("/")
 def home():
+
+    models=get_models()
 
     cards=""
 
@@ -36,28 +65,32 @@ def home():
 
         size=confidence*2
 
-        if confidence > 80:
+        if confidence>80:
             color="#16c784"
-        elif confidence > 70:
+        elif confidence>70:
             color="#f3ba2f"
         else:
             color="#ea3943"
 
+        safe_name=name.replace("'","")
+
         cards+=f"""
 
         <div class="tile"
-        onclick="showModel('{name}','{signal}','{confidence}','{desc}');addWatch('{name}')"
+        onclick="showModel('{safe_name}','{signal}','{confidence}','{desc}')"
         style="width:{size}px;height:{size}px;background:{color};">
 
         <div class="tile-title">{name}</div>
-        <div class="tile-signal">{signal}</div>
+        <div>{signal}</div>
         <div class="tile-score">{confidence}%</div>
 
         </div>
 
         """
 
-    html=f"""
+    return f"""
+
+<!DOCTYPE html>
 
 <html>
 
@@ -67,19 +100,19 @@ def home():
 
 <style>
 
-body{{
+body {{
 background:#05070d;
 color:white;
 font-family:Arial;
 margin:0;
 }}
 
-.header{{
+.header {{
 text-align:center;
 padding:40px;
 }}
 
-.title{{
+.title {{
 font-size:44px;
 font-weight:bold;
 background:linear-gradient(90deg,#00f2ff,#8a5cff);
@@ -87,22 +120,15 @@ background:linear-gradient(90deg,#00f2ff,#8a5cff);
 -webkit-text-fill-color:transparent;
 }}
 
-.subtitle{{opacity:0.6;}}
-
-.container{{
-max-width:1200px;
-margin:auto;
-padding:20px;
-}}
-
-.heatmap{{
+.heatmap {{
 display:flex;
 flex-wrap:wrap;
 gap:10px;
 justify-content:center;
+padding:20px;
 }}
 
-.tile{{
+.tile {{
 border-radius:10px;
 display:flex;
 flex-direction:column;
@@ -115,36 +141,22 @@ cursor:pointer;
 transition:0.2s;
 }}
 
-.tile:hover{{
+.tile:hover {{
 transform:scale(1.1);
 }}
 
-.tile-title{{font-weight:bold;margin-bottom:4px}}
-.tile-score{{font-size:16px;font-weight:bold;margin-top:4px}}
-
-.legend{{
-display:flex;
-justify-content:center;
-gap:20px;
-margin-top:20px;
+.tile-title {{
+font-weight:bold;
+margin-bottom:4px;
 }}
 
-.box{{width:14px;height:14px;border-radius:3px}}
-.green{{background:#16c784}}
-.yellow{{background:#f3ba2f}}
-.red{{background:#ea3943}}
-
-.activity{{
-max-width:800px;
-margin:40px auto;
-background:#0f1424;
-padding:20px;
-border-radius:10px;
+.tile-score {{
+font-size:16px;
+font-weight:bold;
+margin-top:4px;
 }}
 
-.event{{border-bottom:1px solid #1c233a;padding:6px 0}}
-
-.panel{{
+.panel {{
 position:fixed;
 top:50%;
 left:50%;
@@ -155,10 +167,9 @@ border-radius:12px;
 width:320px;
 display:none;
 border:1px solid #1c233a;
-box-shadow:0 0 25px rgba(0,242,255,0.15);
 }}
 
-.timeline{{
+.timeline {{
 margin-top:15px;
 background:#05070d;
 padding:10px;
@@ -166,14 +177,31 @@ border-radius:8px;
 font-size:13px;
 }}
 
-.timeline-item{{
+.timeline-item {{
 border-bottom:1px solid #1c233a;
 padding:6px 0;
 }}
 
-.close{{cursor:pointer;margin-top:10px;color:#00f2ff}}
+.close {{
+cursor:pointer;
+margin-top:10px;
+color:#00f2ff;
+}}
 
-.watchlist{{
+.activity {{
+max-width:800px;
+margin:40px auto;
+background:#0f1424;
+padding:20px;
+border-radius:10px;
+}}
+
+.event {{
+border-bottom:1px solid #1c233a;
+padding:6px 0;
+}}
+
+.watchlist {{
 max-width:800px;
 margin:30px auto;
 background:#0f1424;
@@ -181,7 +209,7 @@ padding:20px;
 border-radius:10px;
 }}
 
-.watch-item{{
+.watch-item {{
 border-bottom:1px solid #1c233a;
 padding:6px 0;
 }}
@@ -195,25 +223,12 @@ padding:6px 0;
 <div class="header">
 
 <div class="title">OpenGradient AI Terminal</div>
-<div class="subtitle">AI Model Signals Dashboard</div>
 
 </div>
-
-<div class="container">
 
 <div class="heatmap">
 
 {cards}
-
-</div>
-
-<div class="legend">
-
-<div><div class="box green"></div> Strong</div>
-<div><div class="box yellow"></div> Neutral</div>
-<div><div class="box red"></div> Weak</div>
-
-</div>
 
 </div>
 
@@ -235,69 +250,84 @@ padding:6px 0;
 
 </div>
 
-
 <div id="panel" class="panel"></div>
+
 
 <script>
 
 let watchlist=[]
 
 function addWatch(name){{
+
 if(!watchlist.includes(name)){{
+
 watchlist.push(name)
+
 renderWatch()
+
 }}
+
 }}
 
 function renderWatch(){{
+
 let box=document.getElementById("watchlist")
+
 box.innerHTML=""
+
 watchlist.forEach(m=>{{
+
 box.innerHTML+=`<div class="watch-item">⭐ ${m}</div>`
+
 }})
+
 }}
 
 const models=[
 "ETH Volatility Predictor",
 "Crypto Sentiment AI",
 "Market Regime Detector",
-"BTC Price Predictor",
-"DeFi Risk Analyzer",
-"AI Trading Agent"
+"BTC Price Predictor"
 ]
 
 const signals=[
 "HIGH VOLATILITY",
 "BULLISH TREND",
 "BEARISH SIGNAL",
-"POSITIVE SENTIMENT",
-"RISK INCREASE"
+"POSITIVE SENTIMENT"
 ]
 
 function addEvent(){{
+
 let model=models[Math.floor(Math.random()*models.length)]
 let signal=signals[Math.floor(Math.random()*signals.length)]
+
 let time=new Date().toLocaleTimeString()
-let event=`[${{time}}] ${{model}} generated ${{signal}}`
+
+let event="["+time+"] "+model+" generated "+signal
+
 let feed=document.getElementById("feed")
+
 let div=document.createElement("div")
+
 div.className="event"
+
 div.innerText=event
+
 feed.prepend(div)
-if(feed.children.length>10){{feed.removeChild(feed.lastChild)}}
+
+if(feed.children.length>10){{
+
+feed.removeChild(feed.lastChild)
+
+}}
+
 }}
 
 setInterval(addEvent,3000)
 
-function generateTimeline(){{
 
-let signals=[
-"HIGH VOLATILITY",
-"BULLISH TREND",
-"BEARISH SIGNAL",
-"POSITIVE SENTIMENT",
-"RISK INCREASE"
-]
+function generateTimeline(){{
 
 let html=""
 
@@ -305,13 +335,9 @@ for(let i=0;i<5;i++){{
 
 let time=new Date(Date.now()-i*60000).toLocaleTimeString()
 
-let signal=signals[Math.floor(Math.random()*signals.length)]
+let s=signals[Math.floor(Math.random()*signals.length)]
 
-html+=`
-<div class="timeline-item">
-${{time}} — ${{signal}}
-</div>
-`
+html+=`<div class="timeline-item">${{time}} — ${{s}}</div>`
 
 }}
 
@@ -319,7 +345,10 @@ return html
 
 }}
 
+
 function showModel(name,signal,confidence,desc){{
+
+addWatch(name)
 
 let panel=document.getElementById("panel")
 
@@ -333,7 +362,7 @@ panel.innerHTML=`
 
 <p><b>Confidence:</b> ${{confidence}}%</p>
 
-<p><b>Description:</b><br>${{desc}}</p>
+<p>${{desc}}</p>
 
 <h3>Signal Timeline</h3>
 
@@ -348,7 +377,9 @@ ${{generateTimeline()}}
 }}
 
 function closePanel(){{
+
 document.getElementById("panel").style.display="none"
+
 }}
 
 </script>
@@ -359,8 +390,6 @@ document.getElementById("panel").style.display="none"
 
 """
 
-    return html
-
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=8080)
+    app.run(host="0.0.0.0",port=8080)
