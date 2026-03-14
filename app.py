@@ -3,9 +3,9 @@ import requests
 
 app = Flask(__name__)
 
-API = "https://hub.opengradient.ai/api/models?page=0&limit=20&sort_by=most_likes"
+API = "https://hub.opengradient.ai/api/models?page=0&limit=50&sort_by=most_likes"
 
-def get_models():
+def fetch_models():
 
     headers = {
         "User-Agent": "Mozilla/5.0",
@@ -18,44 +18,56 @@ def get_models():
 
         data = r.json()
 
-        models = []
+        return data.get("models", [])
 
-        for m in data.get("models", []):
-
-            models.append({
-                "name": m.get("name","Unknown Model"),
-                "description": m.get("description","OpenGradient model"),
-                "likes": m.get("likes",0)
-            })
-
-        return models
-
-    except Exception as e:
-
-        print("API error:", e)
+    except:
 
         return []
+
+
+def ecosystem_stats(models):
+
+    total = len(models)
+
+    total_likes = sum(m.get("likes",0) for m in models)
+
+    top_model = ""
+
+    if models:
+        top_model = models[0].get("name","")
+
+    return total, total_likes, top_model
+
 
 @app.route("/")
 def home():
 
-    models = get_models()
+    models = fetch_models()
+
+    total, likes, top = ecosystem_stats(models)
 
     cards = ""
 
-    for m in models:
+    for m in models[:20]:
 
         cards += f"""
+
         <div class='card'>
-        <h3>{m['name']}</h3>
-        <p>{m['description']}</p>
-        <div class='likes'>❤️ {m['likes']}</div>
+
+        <h3>{m.get('name')}</h3>
+
+        <p>{m.get('description','OpenGradient model')}</p>
+
+        <div class='likes'>❤️ {m.get('likes',0)}</div>
+
         </div>
+
         """
 
     return f"""
 
 <!DOCTYPE html>
+
 <html>
 
 <head>
@@ -77,8 +89,23 @@ padding:40px;
 }}
 
 .title{{
-font-size:36px;
+font-size:40px;
 color:#00f2ff;
+}}
+
+.stats{{
+display:flex;
+justify-content:center;
+gap:40px;
+padding:20px;
+}}
+
+.stat{{
+background:#141a2b;
+padding:20px;
+border-radius:10px;
+min-width:150px;
+text-align:center;
 }}
 
 .grid{{
@@ -110,9 +137,32 @@ color:#00f2ff;
 <body>
 
 <div class="header">
+
 <div class="title">
+
 OpenGradient Ecosystem Radar
+
 </div>
+
+</div>
+
+<div class="stats">
+
+<div class="stat">
+Models<br>
+<b>{total}</b>
+</div>
+
+<div class="stat">
+Total Likes<br>
+<b>{likes}</b>
+</div>
+
+<div class="stat">
+Top Model<br>
+<b>{top}</b>
+</div>
+
 </div>
 
 <div class="grid">
@@ -125,6 +175,7 @@ OpenGradient Ecosystem Radar
 
 </html>
 """
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
