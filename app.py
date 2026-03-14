@@ -1,67 +1,68 @@
 from flask import Flask
 import requests
+from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 
-API = "https://hub.opengradient.ai/api/models?page=0&limit=50&sort_by=most_likes"
+URL = "https://hub.opengradient.ai/models"
 
-def fetch_models():
+
+def get_models():
 
     headers = {
-        "User-Agent": "Mozilla/5.0",
-        "Accept": "application/json"
+        "User-Agent": "Mozilla/5.0"
     }
 
     try:
 
-        r = requests.get(API, headers=headers, timeout=10)
+        r = requests.get(URL, headers=headers, timeout=10)
 
-        data = r.json()
+        soup = BeautifulSoup(r.text, "html.parser")
 
-        return data.get("models", [])
+        models = []
 
-    except:
+        for tag in soup.find_all("a"):
+
+            text = tag.text.strip()
+
+            if "-" in text and len(text) > 5 and len(text) < 80:
+
+                models.append(text)
+
+        models = list(dict.fromkeys(models))
+
+        result = []
+
+        for m in models[:20]:
+
+            result.append({
+                "name": m,
+                "description": "OpenGradient model"
+            })
+
+        return result
+
+    except Exception as e:
+
+        print("error:", e)
 
         return []
-
-
-def ecosystem_stats(models):
-
-    total = len(models)
-
-    total_likes = sum(m.get("likes",0) for m in models)
-
-    top_model = ""
-
-    if models:
-        top_model = models[0].get("name","")
-
-    return total, total_likes, top_model
 
 
 @app.route("/")
 def home():
 
-    models = fetch_models()
-
-    total, likes, top = ecosystem_stats(models)
+    models = get_models()
 
     cards = ""
 
-    for m in models[:20]:
+    for m in models:
 
         cards += f"""
-
         <div class='card'>
-
-        <h3>{m.get('name')}</h3>
-
-        <p>{m.get('description','OpenGradient model')}</p>
-
-        <div class='likes'>❤️ {m.get('likes',0)}</div>
-
+        <h3>{m['name']}</h3>
+        <p>{m['description']}</p>
         </div>
-
         """
 
     return f"""
@@ -89,23 +90,8 @@ padding:40px;
 }}
 
 .title{{
-font-size:40px;
+font-size:36px;
 color:#00f2ff;
-}}
-
-.stats{{
-display:flex;
-justify-content:center;
-gap:40px;
-padding:20px;
-}}
-
-.stat{{
-background:#141a2b;
-padding:20px;
-border-radius:10px;
-min-width:150px;
-text-align:center;
 }}
 
 .grid{{
@@ -125,11 +111,6 @@ border-radius:10px;
 background:#1c2338;
 }}
 
-.likes{{
-margin-top:10px;
-color:#00f2ff;
-}}
-
 </style>
 
 </head>
@@ -139,28 +120,7 @@ color:#00f2ff;
 <div class="header">
 
 <div class="title">
-
 OpenGradient Ecosystem Radar
-
-</div>
-
-</div>
-
-<div class="stats">
-
-<div class="stat">
-Models<br>
-<b>{total}</b>
-</div>
-
-<div class="stat">
-Total Likes<br>
-<b>{likes}</b>
-</div>
-
-<div class="stat">
-Top Model<br>
-<b>{top}</b>
 </div>
 
 </div>
