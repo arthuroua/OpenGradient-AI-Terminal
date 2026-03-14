@@ -1,15 +1,16 @@
 from flask import Flask
 import random
-import requests
 
 app = Flask(__name__)
 
-fallback_models = [
+models = [
 ("ETH Volatility Predictor","Predict ETH volatility"),
 ("Crypto Sentiment AI","Analyze market sentiment"),
 ("Market Regime Detector","Detect bull/bear regimes"),
 ("BTC Price Predictor","Forecast BTC trends"),
-("DeFi Risk Analyzer","Analyze DeFi risk")
+("DeFi Risk Analyzer","Analyze DeFi risk"),
+("AI Trading Agent","Autonomous crypto trading AI"),
+("Portfolio Optimizer","Optimize crypto portfolios")
 ]
 
 signals = [
@@ -20,46 +21,8 @@ signals = [
 "Risk Increase"
 ]
 
-
-def get_models():
-
-    try:
-        r = requests.get("https://hub.opengradient.ai",timeout=5)
-
-        if r.status_code == 200:
-
-            text = r.text
-
-            models=[]
-
-            lines=text.split(">")
-
-            for l in lines:
-
-                if "Model" in l or "Predictor" in l:
-
-                    name=l.strip()
-
-                    if len(name)<40:
-
-                        models.append((name,"OpenGradient model"))
-
-                if len(models)>6:
-                    break
-
-            if len(models)>2:
-                return models
-
-    except:
-        pass
-
-    return fallback_models
-
-
 @app.route("/")
 def home():
-
-    models=get_models()
 
     cards=""
 
@@ -79,53 +42,54 @@ def home():
 
         safe=name.replace("'","")
 
-        cards+=f"""
-        <div class="tile" onclick="showModel('{safe}','{signal}','{confidence}','{desc}')" style="width:{size}px;height:{size}px;background:{color};">
-        <div class="tile-title">{name}</div>
-        <div>{signal}</div>
-        <div class="tile-score">{confidence}%</div>
-        </div>
-        """
+        cards += """
+        <div class='tile'
+        onclick="showModel('{0}','{1}','{2}','{3}');addWatch('{0}')"
+        style='width:{4}px;height:{4}px;background:{5};'>
 
-    return f"""
+        <div class='tile-title'>{0}</div>
+        <div>{1}</div>
+        <div class='tile-score'>{2}%</div>
+
+        </div>
+        """.format(safe,signal,confidence,desc,size,color)
+
+    html = """
 <!DOCTYPE html>
 <html>
-
 <head>
 
 <title>OpenGradient AI Terminal</title>
 
 <style>
 
-body {{
+body{
 background:#05070d;
 color:white;
 font-family:Arial;
 margin:0;
-}}
+}
 
-.header {{
+.header{
 text-align:center;
 padding:40px;
-}}
+}
 
-.title {{
+.title{
 font-size:42px;
 font-weight:bold;
-background:linear-gradient(90deg,#00f2ff,#8a5cff);
--webkit-background-clip:text;
--webkit-text-fill-color:transparent;
-}}
+color:#00f2ff;
+}
 
-.heatmap {{
+.heatmap{
 display:flex;
 flex-wrap:wrap;
 gap:10px;
 justify-content:center;
 padding:20px;
-}}
+}
 
-.tile {{
+.tile{
 border-radius:10px;
 display:flex;
 flex-direction:column;
@@ -136,58 +100,65 @@ font-size:12px;
 padding:10px;
 cursor:pointer;
 transition:0.2s;
-}}
+}
 
-.tile:hover {{
+.tile:hover{
 transform:scale(1.1);
-}}
+}
 
-.tile-title {{
+.tile-title{
 font-weight:bold;
 margin-bottom:4px;
-}}
+}
 
-.tile-score {{
+.tile-score{
 font-size:16px;
 font-weight:bold;
 margin-top:4px;
-}}
+}
 
-.panel {{
+.panel{
 position:fixed;
 top:50%;
 left:50%;
 transform:translate(-50%,-50%);
 background:#0f1424;
-padding:25px;
+padding:20px;
 border-radius:10px;
 width:320px;
 display:none;
-}}
+}
 
-.timeline {{
+.timeline{
 margin-top:10px;
 font-size:13px;
-}}
+}
 
-.close {{
-margin-top:10px;
-cursor:pointer;
-color:#00f2ff;
-}}
-
-.activity {{
+.activity{
 max-width:700px;
 margin:40px auto;
 background:#0f1424;
 padding:20px;
 border-radius:10px;
-}}
+}
 
-.event {{
+.event{
 border-bottom:1px solid #1c233a;
 padding:5px 0;
-}}
+}
+
+.watchlist{
+max-width:700px;
+margin:30px auto;
+background:#0f1424;
+padding:20px;
+border-radius:10px;
+}
+
+.watch-item{
+border-bottom:1px solid #1c233a;
+padding:6px 0;
+}
 
 </style>
 
@@ -196,54 +167,74 @@ padding:5px 0;
 <body>
 
 <div class="header">
-
 <div class="title">OpenGradient AI Terminal</div>
-
 </div>
 
 <div class="heatmap">
-
-{cards}
+""" + cards + """
 
 </div>
 
 
-<div class="activity">
+<div class="watchlist">
+<h3>⭐ Model Watchlist</h3>
+<div id="watchlist"></div>
+</div>
 
+
+<div class="activity">
 <h3>⚡ Live Model Activity</h3>
-
 <div id="feed"></div>
-
 </div>
 
 
 <div class="activity">
-
 <h3>🚀 Model Hub Monitor</h3>
-
-<div id="newmodels"></div>
-
+<div id="monitor"></div>
 </div>
 
 
 <div id="panel" class="panel"></div>
 
+
 <script>
 
-let signals=[
-"HIGH VOLATILITY",
-"BULLISH TREND",
-"BEARISH SIGNAL",
-"POSITIVE SENTIMENT"
-]
+let watchlist=[]
 
-let models=[
+function addWatch(name){
+
+if(!watchlist.includes(name)){
+watchlist.push(name)
+renderWatch()
+}
+
+}
+
+function renderWatch(){
+
+let box=document.getElementById("watchlist")
+
+box.innerHTML=""
+
+watchlist.forEach(m=>{
+box.innerHTML+="<div class='watch-item'>⭐ "+m+"</div>"
+})
+
+}
+
+const models=[
 "ETH Volatility Predictor",
 "Crypto Sentiment AI",
 "Market Regime Detector",
 "BTC Price Predictor"
 ]
 
+const signals=[
+"HIGH VOLATILITY",
+"BULLISH TREND",
+"BEARISH SIGNAL",
+"POSITIVE SENTIMENT"
+]
 
 function addEvent(){
 
@@ -265,9 +256,7 @@ div.innerText=text
 feed.prepend(div)
 
 if(feed.children.length>8){
-
 feed.removeChild(feed.lastChild)
-
 }
 
 }
@@ -275,7 +264,7 @@ feed.removeChild(feed.lastChild)
 setInterval(addEvent,3000)
 
 
-function addModel(){
+function monitorModel(){
 
 let m=models[Math.floor(Math.random()*models.length)]
 
@@ -283,7 +272,7 @@ let time=new Date().toLocaleTimeString()
 
 let text="["+time+"] new model detected → "+m
 
-let box=document.getElementById("newmodels")
+let box=document.getElementById("monitor")
 
 let div=document.createElement("div")
 
@@ -294,15 +283,32 @@ div.innerText=text
 box.prepend(div)
 
 if(box.children.length>6){
-
 box.removeChild(box.lastChild)
-
 }
 
 }
 
-setInterval(addModel,7000)
+setInterval(monitorModel,7000)
 
+
+
+function generateTimeline(){
+
+let html=""
+
+for(let i=0;i<5;i++){
+
+let time=new Date(Date.now()-i*60000).toLocaleTimeString()
+
+let s=signals[Math.floor(Math.random()*signals.length)]
+
+html+="<div class='event'>"+time+" — "+s+"</div>"
+
+}
+
+return html
+
+}
 
 
 function showModel(name,signal,confidence,desc){
@@ -315,24 +321,23 @@ panel.innerHTML="<h2>"+name+"</h2>"
 +"<p><b>Signal:</b> "+signal+"</p>"
 +"<p><b>Confidence:</b> "+confidence+"%</p>"
 +"<p>"+desc+"</p>"
-+"<div class='timeline'>Signal timeline generated</div>"
-+"<div class='close' onclick='closePanel()'>Close</div>"
++"<div class='timeline'>"+generateTimeline()+"</div>"
++"<button onclick='closePanel()'>Close</button>"
 
 }
 
 function closePanel(){
-
 document.getElementById("panel").style.display="none"
-
 }
 
 </script>
 
 </body>
-
 </html>
 """
 
+    return html
+
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0",port=8080)
+    app.run(host="0.0.0.0", port=8080)
