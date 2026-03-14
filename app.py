@@ -1,60 +1,40 @@
 from flask import Flask
 import requests
-from bs4 import BeautifulSoup
 
 app = Flask(__name__)
 
-URL = "https://hub.opengradient.ai/models"
+API = "https://hub.opengradient.ai/api/models?page=0&limit=20&sort_by=most_likes"
 
 def get_models():
 
     headers = {
-        "User-Agent": "Mozilla/5.0"
+        "User-Agent": "Mozilla/5.0",
+        "Accept": "application/json"
     }
 
     try:
 
-        r = requests.get(URL, headers=headers, timeout=10)
+        r = requests.get(API, headers=headers, timeout=10)
 
-        soup = BeautifulSoup(r.text, "html.parser")
+        data = r.json()
 
         models = []
 
-        cards = soup.find_all("a")
+        for m in data.get("models", []):
 
-        for c in cards:
-
-            name = c.text.strip()
-
-            if "-" in name and len(name) < 80 and len(name) > 5:
-
-                models.append({
-                    "name": name,
-                    "description": "OpenGradient model"
-                })
-
-        models = list(dict.fromkeys([m["name"] for m in models]))
-
-        result = []
-
-        for m in models[:20]:
-
-            result.append({
-                "name": m,
-                "description": "Model from OpenGradient Hub"
+            models.append({
+                "name": m.get("name","Unknown Model"),
+                "description": m.get("description","OpenGradient model"),
+                "likes": m.get("likes",0)
             })
 
-        if len(result) > 0:
-            return result
+        return models
 
     except Exception as e:
-        print("scraper error:", e)
 
-    return [
-        {"name":"ETH Volatility Predictor","description":"Predict ETH volatility"},
-        {"name":"Crypto Sentiment AI","description":"Analyze crypto sentiment"}
-    ]
+        print("API error:", e)
 
+        return []
 
 @app.route("/")
 def home():
@@ -67,20 +47,20 @@ def home():
 
         cards += f"""
         <div class='card'>
-        <h3>{m["name"]}</h3>
-        <p>{m["description"]}</p>
+        <h3>{m['name']}</h3>
+        <p>{m['description']}</p>
+        <div class='likes'>❤️ {m['likes']}</div>
         </div>
         """
 
     return f"""
 
 <!DOCTYPE html>
-
 <html>
 
 <head>
 
-<title>OpenGradient Radar</title>
+<title>OpenGradient Ecosystem Radar</title>
 
 <style>
 
@@ -103,7 +83,7 @@ color:#00f2ff;
 
 .grid{{
 display:grid;
-grid-template-columns:repeat(auto-fit,minmax(250px,1fr));
+grid-template-columns:repeat(auto-fit,minmax(260px,1fr));
 gap:20px;
 padding:40px;
 }}
@@ -118,6 +98,11 @@ border-radius:10px;
 background:#1c2338;
 }}
 
+.likes{{
+margin-top:10px;
+color:#00f2ff;
+}}
+
 </style>
 
 </head>
@@ -125,13 +110,9 @@ background:#1c2338;
 <body>
 
 <div class="header">
-
 <div class="title">
-
 OpenGradient Ecosystem Radar
-
 </div>
-
 </div>
 
 <div class="grid">
