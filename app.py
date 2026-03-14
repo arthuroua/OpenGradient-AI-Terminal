@@ -1,51 +1,45 @@
 from flask import Flask
 import requests
-from bs4 import BeautifulSoup
 import random
 
 app = Flask(__name__)
 
+API_URL = "https://hub.opengradient.ai/models?page=0&limit=24&search=&sort_by=most_likes"
+
 signals = [
-"Bullish",
-"Bearish",
-"High Volatility",
-"Positive Sentiment"
+"BULLISH",
+"BEARISH",
+"HIGH VOLATILITY",
+"POSITIVE SENTIMENT"
 ]
 
 def get_models():
 
     try:
 
-        url = "https://hub.opengradient.ai"
+        r = requests.get(API_URL, timeout=10)
 
-        r = requests.get(url, timeout=6)
-
-        soup = BeautifulSoup(r.text, "html.parser")
+        data = r.json()
 
         models = []
 
-        for h in soup.find_all("h3")[:20]:
+        for m in data.get("models", []):
 
-            name = h.text.strip()
-
-            if len(name) > 3:
-
-                models.append({
-                    "name": name,
-                    "description": "OpenGradient model"
-                })
+            models.append({
+                "name": m.get("name","Unknown Model"),
+                "description": m.get("description","OpenGradient model"),
+                "likes": m.get("likes",0)
+            })
 
         if len(models) > 0:
             return models
 
     except Exception as e:
-
-        print("Hub error:", e)
+        print("API error:", e)
 
     return [
-        {"name":"ETH Volatility Predictor","description":"Predict ETH volatility"},
-        {"name":"Crypto Sentiment AI","description":"Analyze sentiment"},
-        {"name":"Market Regime Detector","description":"Detect market regimes"}
+        {"name":"ETH Volatility Predictor","description":"Predict ETH volatility","likes":0},
+        {"name":"Crypto Sentiment AI","description":"Analyze crypto sentiment","likes":0}
     ]
 
 
@@ -74,7 +68,7 @@ def home():
 
         cards += f"""
         <div class='tile'
-        onclick="showModel('{name}','{signal}','{confidence}','{m["description"]}')"
+        onclick="showModel('{name}','{signal}','{confidence}','{m["description"]}','{m["likes"]}')"
         style='width:{size}px;height:{size}px;background:{color};'>
 
         <div class='tile-title'>{name}</div>
@@ -85,6 +79,7 @@ def home():
         """
 
     total_models = len(models)
+    total_likes = sum(m["likes"] for m in models)
 
     return f"""
 <!DOCTYPE html>
@@ -110,7 +105,7 @@ padding:40px;
 }}
 
 .title{{
-font-size:44px;
+font-size:42px;
 color:#00f2ff;
 }}
 
@@ -125,6 +120,7 @@ padding:20px;
 background:#0f1424;
 padding:20px;
 border-radius:10px;
+text-align:center;
 }}
 
 .heatmap{{
@@ -164,14 +160,6 @@ width:320px;
 display:none;
 }}
 
-.watchlist{{
-max-width:800px;
-margin:30px auto;
-background:#0f1424;
-padding:20px;
-border-radius:10px;
-}}
-
 .activity{{
 max-width:800px;
 margin:30px auto;
@@ -194,9 +182,7 @@ padding:6px 0;
 <div class="header">
 
 <div class="title">
-
 OpenGradient Ecosystem Radar
-
 </div>
 
 </div>
@@ -204,31 +190,24 @@ OpenGradient Ecosystem Radar
 <div class="stats">
 
 <div class="stat">
-
 Total Models<br>
 <b>{total_models}</b>
+</div>
 
+<div class="stat">
+Total Likes<br>
+<b>{total_likes}</b>
 </div>
 
 </div>
 
 <div class="heatmap">
-
 {cards}
-
-</div>
-
-<div class="watchlist">
-
-<h3>⭐ Watchlist</h3>
-
-<div id="watchlist"></div>
-
 </div>
 
 <div class="activity">
 
-<h3>⚡ Live Activity</h3>
+<h3>⚡ Live Model Activity</h3>
 
 <div id="feed"></div>
 
@@ -237,34 +216,6 @@ Total Models<br>
 <div id="panel" class="panel"></div>
 
 <script>
-
-let watchlist=[]
-
-function addWatch(name){{
-
-if(!watchlist.includes(name)){{
-
-watchlist.push(name)
-
-renderWatch()
-
-}}
-
-}}
-
-function renderWatch(){{
-
-let box=document.getElementById("watchlist")
-
-box.innerHTML=""
-
-watchlist.forEach(m=>{{
-
-box.innerHTML+="<div class='event'>⭐ "+m+"</div>"
-
-}})
-
-}}
 
 const signals=[
 "HIGH VOLATILITY",
@@ -291,13 +242,15 @@ div.innerText=text
 
 feed.prepend(div)
 
+if(feed.children.length>10){{
+feed.removeChild(feed.lastChild)
+}}
+
 }}
 
 setInterval(addEvent,3000)
 
-function showModel(name,signal,confidence,desc){{
-
-addWatch(name)
+function showModel(name,signal,confidence,desc,likes){{
 
 let panel=document.getElementById("panel")
 
@@ -306,15 +259,14 @@ panel.style.display="block"
 panel.innerHTML="<h2>"+name+"</h2>"
 +"<p><b>Signal:</b> "+signal+"</p>"
 +"<p><b>Confidence:</b> "+confidence+"%</p>"
++"<p><b>Likes:</b> "+likes+"</p>"
 +"<p>"+desc+"</p>"
 +"<button onclick='closePanel()'>Close</button>"
 
 }}
 
 function closePanel(){{
-
 document.getElementById("panel").style.display="none"
-
 }}
 
 </script>
@@ -323,6 +275,7 @@ document.getElementById("panel").style.display="none"
 
 </html>
 """
+
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8080)
